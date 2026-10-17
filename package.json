@@ -1,0 +1,18 @@
+{
+  "name": "multilingo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Small, invite-only Spanish learning app for friends and family",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/worker.mjs && node --check src/lessons.mjs && node --check public/app.js && npm test",
+    "dev": "npx wrangler dev --local",
+    "deploy": "npx wrangler deploy",
+    "db:local": "npx wrangler d1 migrations apply multilingo --local",
+    "db:remote": "npx wrangler d1 migrations apply multilingo --remote",
+    "invite": "node scripts/create-invite.mjs"
+  },
+  "engines": { "node": ">=22" },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}
