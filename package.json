@@ -6,12 +6,9 @@
   "description": "Small, invite-only Spanish learning app for friends and family",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/worker.mjs && node --check src/lessons.mjs && node --check public/app.js && node --check scripts/deploy.mjs && npm test",
+    "check": "node --check src/worker.mjs && node --check src/storage.mjs && node --check src/lessons.mjs && node --check public/app.js && node --check public/admin.js && node --check scripts/deploy.mjs && npm test",
     "dev": "npx wrangler dev --local",
     "deploy": "npx wrangler deploy",
-    "db:local": "npx wrangler d1 migrations apply multilingo --local",
-    "db:remote": "npx wrangler d1 migrations apply multilingo --remote",
-    "invite": "node scripts/create-invite.mjs",
     "deploy:ci": "node scripts/deploy.mjs"
   },
   "engines": {

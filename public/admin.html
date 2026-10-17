@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>MultiLingo — Private invitations</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main id="app" class="app">
+    <section class="panel login-panel">
+      <div class="eyebrow">MultiLingo administrator</div>
+      <h1 class="title">Invite a learner</h1>
+      <p class="subtle">Enter your private administrator key to generate one personal learning code. Do not share the administrator key with learners.</p>
+      <form id="invite-form" class="form-stack">
+        <label class="field-label">Administrator key <input class="input" id="admin-key" type="password" autocomplete="off" required></label>
+        <button id="invite-button" class="primary" type="submit">Create private invitation</button>
+      </form>
+      <div id="invite-result" aria-live="polite"></div>
+      <p class="muted center">Send only the new learning code to its intended recipient. Codes are confidential and can sign that learner back in later.</p>
+      <p><a href="/">← Back to learning</a></p>
+    </section>
+  </main>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

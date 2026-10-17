@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { databaseIdFromList, configWithDatabase } from '../scripts/deploy.mjs';
-const id = 'a821740f-3447-48e3-a2b7-500f99c9089a';
-test('select existing D1 database without creating duplicate',()=>{
-  assert.equal(databaseIdFromList([{name:'other',uuid:id},{name:'multilingo',uuid:id}],'multilingo'),id);
-  assert.equal(databaseIdFromList([],'multilingo'),null);
+import { deploymentUrl } from '../scripts/deploy.mjs';
+import { readFileSync } from 'node:fs';
+
+test('Worker deployment output returns the correct HTTPS workers.dev URL', () => {
+  assert.equal(deploymentUrl('Deployed to https://multilingo.example.workers.dev'), 'https://multilingo.example.workers.dev');
+  assert.equal(deploymentUrl('deployment failed'), null);
 });
-test('replace database ID placeholder in Wrangler config',()=>{
-  assert.match(configWithDatabase('{"database_id":"REPLACE_WITH_D1_DATABASE_ID"}',id),new RegExp(id));
-  assert.throws(()=>configWithDatabase('{"database_id":"x"}',id));
+test('Wrangler uses SQLite Durable Objects and no D1 dependency', () => {
+  const wrangler = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  assert.deepEqual(wrangler.migrations[0].new_sqlite_classes, ['LearningStore']);
+  assert.equal(wrangler.durable_objects.bindings[0].name, 'LEARNING_STORE');
+  assert.equal(wrangler.d1_databases, undefined);
 });

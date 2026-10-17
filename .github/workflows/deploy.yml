@@ -15,6 +15,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MULTILINGO_ADMIN_TOKEN: ${{ secrets.MULTILINGO_ADMIN_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Check Cloudflare configuration
@@ -36,6 +37,6 @@ jobs:
         run: |
           npm install
           npm run check
-      - name: Provision D1, migrate, deploy and smoke test
+      - name: Deploy Durable Objects Worker and smoke test
         if: steps.credentials.outputs.ready == 'true'
         run: npm run deploy:ci

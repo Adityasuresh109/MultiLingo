@@ -1,3 +1,4 @@
+import { initializeStorage, sqliteAdapter, atomicClaim } from './storage.mjs';
 import { lessons, findLesson, gradeQuestion, gradeLesson, publicLesson, isUnlocked } from './lessons.mjs';
 
 const COOKIE = '__Host-ml_session';
@@ -42,7 +43,22 @@ async function route(request, env) {
   if (!url.pathname.startsWith('/api/')) return err('Not found', 404);
   if (method !== 'GET' && method !== 'HEAD' && !sameOrigin(request)) return err('Cross-origin request rejected', 403);
   if (url.pathname === '/api/health' && method === 'GET') return json({ ok: true, app: 'MultiLingo' });
-  if (!env.DB) return err('Database not configured', 503);
+  if (!env.DB) return err('Learning storage is not configured', 503);
+
+  // Private invitation issuance. Requires a separate app admin secret; never
+  // accept Cloudflare API tokens as application credentials or log raw codes.
+  if (url.pathname === '/api/admin/invites' && method === 'POST') {
+    const expected = env.ADMIN_TOKEN;
+    const supplied = request.headers.get('authorization') ?? '';
+    if (!expected || expected.length < 24 || !supplied.startsWith('Bearer ') ||
+        (await hash(supplied.slice(7))) !== await hash(expected))
+      return err('Administrator authorization required', 403);
+    const count = await env.DB.prepare('SELECT COUNT(*) AS count FROM invites').bind().first();
+    if ((count?.count ?? 0) >= 10) return err('Pilot is limited to ten invitations', 409);
+    const invite = token();
+    await env.DB.prepare('INSERT INTO invites(token_hash) VALUES (?)').bind(await hash(invite)).run();
+    return json({ invite }, 201);
+  }
 
   if (url.pathname === '/api/auth/redeem' && method === 'POST') {
     const body = await readBody(request);
@@ -63,12 +79,10 @@ async function route(request, env) {
         .bind(sessionHash, returning.id, now + SESSION_SECONDS).run();
       return json({ ok: true, name: returning.display_name }, 200, { 'set-cookie': sessionCookie(session) });
     }
-    const results = await env.DB.batch([
-      env.DB.prepare('UPDATE invites SET claimed_by = ?, claimed_at = datetime(\'now\') WHERE token_hash = ? AND claimed_by IS NULL RETURNING token_hash').bind(userId, inviteHash),
-      env.DB.prepare('INSERT INTO users(id, display_name) SELECT ?, ? WHERE EXISTS(SELECT 1 FROM invites WHERE token_hash = ? AND claimed_by = ?)').bind(userId, name, inviteHash, userId),
-      env.DB.prepare('INSERT INTO sessions(token_hash, user_id, expires_at) SELECT ?, id, ? FROM users WHERE id = ?').bind(sessionHash, now + SESSION_SECONDS, userId)
-    ]);
-    if ((results?.[0]?.results?.length ?? 0) !== 1) return err('That invitation is invalid or has already been used', 403);
+    const claimed = atomicClaim(env.STORAGE_CTX, {
+      inviteHash, userId, displayName: name, sessionHash, expiresAt: now + SESSION_SECONDS
+    });
+    if (!claimed) return err('That invitation is invalid or has already been used', 403);
     return json({ ok: true, name }, 200, { 'set-cookie': sessionCookie(session) });
   }
 
@@ -121,9 +135,47 @@ async function route(request, env) {
   }
   return err('Method not allowed', 405);
 }
+/** One durable, SQLite-backed instance for the small private MultiLingo pilot. */
+export class LearningStore {
+  constructor(ctx, env) {
+    this.ctx = ctx;
+    this.env = env;
+    initializeStorage(ctx.storage.sql);
+  }
+  async fetch(request) {
+    try {
+      return await route(request, {
+        ...this.env,
+        DB: sqliteAdapter(this.ctx),
+        STORAGE_CTX: this.ctx
+      });
+    } catch (error) {
+      console.error('MultiLingo store error', error?.name ?? 'Error');
+      return err('Something went wrong. Please try again.', 500);
+    }
+  }
+}
+
 export default {
   async fetch(request, env) {
-    try { return await route(request, env); }
-    catch (error) { console.error('MultiLingo API error', error?.name ?? 'Error'); return err('Something went wrong. Please try again.', 500); }
+    try {
+      const pathname = new URL(request.url).pathname;
+      if (pathname === '/api/health' && request.method === 'GET')
+        return json({ ok: true, app: 'MultiLingo', storage: 'durable-objects-sqlite' });
+      if (pathname.startsWith('/api/')) {
+        if (env.LEARNING_STORE) {
+          const instance = env.LEARNING_STORE.get(env.LEARNING_STORE.idFromName('multilingo-pilot-v1'));
+          return await instance.fetch(request);
+        }
+        // Test-mode compatibility only; deployed app always uses LEARNING_STORE.
+        if (env.DB) return await route(request, env);
+        return err('Learning storage is not configured', 503);
+      }
+      if (env.ASSETS) return env.ASSETS.fetch(request);
+      return err('Not found', 404);
+    } catch (error) {
+      console.error('MultiLingo API error', error?.name ?? 'Error');
+      return err('Something went wrong. Please try again.', 500);
+    }
   }
 };

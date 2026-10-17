@@ -1,6 +1,6 @@
 # MultiLingo — Version 1 Product & Learning Specification
 
-Status: **approved requirements, staged implementation** (17 October 2026). Application **name: MultiLingo**. Duolingo is a behavior/UX reference, not the application name or a content source.
+Status: **approved requirements, implemented foundation awaiting Cloudflare release** (17 October 2026). Application **name: MultiLingo**. Duolingo is a behavior/UX reference, not the application name or a content source.
 
 ## Fixed decisions
 
@@ -21,7 +21,7 @@ Status: **approved requirements, staged implementation** (17 October 2026). Appl
 5. Finish lesson, see percent correct; >=80% unlocks the next lesson.
 6. Retry lessons; retain maximum percent and number of attempts independently for each learner.
 7. See review reminders once prior material is due.
-8. Sign out; personal progress is stored in D1, not browser local storage.
+8. Sign out; personal progress is stored in the Durable Object SQLite database, not browser local storage.
 
 ## Content baseline, implemented in the starter
 
@@ -59,9 +59,10 @@ Status: **approved requirements, staged implementation** (17 October 2026). Appl
 
 - Zero-build responsive browser client in `public/` (HTML/CSS/vanilla JS).
 - Cloudflare Worker in `src/worker.mjs` with static Worker Assets in the same origin.
-- Cloudflare D1 stores invite-token hashes, learner records, session-token hashes and progress.
+- A single SQLite-backed Cloudflare Durable Object stores invite-token hashes, learner records, session-token hashes and progress.
 - `__Host-ml_session`: Secure, HttpOnly, SameSite=Strict cookie; 30-day expiry.
 - Crypto-random 256-bit private learning codes: first use claims the invitation and creates a learner; subsequent uses sign back into that exact learner. No plaintext codes stored.
+- The owner can generate learner invitation codes at `/admin.html` after setting a private `MULTILINGO_ADMIN_TOKEN` GitHub Actions secret, which the deployment script installs as a Cloudflare Worker secret.
 - REST endpoints: `GET /api/health`, `POST /api/auth/redeem`, `GET /api/me`, `POST /api/auth/logout`, `GET /api/lessons`, `GET /api/lessons/:id`, `POST /api/lessons/:id/check`, `POST /api/lessons/:id/complete`.
 - Browser public assets may be visible, but **every lesson and user-specific API endpoint requires a valid session**. This is invitation-based access control, not a claim that a public Worker URL is invisible.
 - No direct third-party analytics or learner-tracking SDK in the starter.
@@ -70,11 +71,12 @@ Status: **approved requirements, staged implementation** (17 October 2026). Appl
 
 - [x] User-supplied parameters reflected in specification.
 - [x] Original two-lesson curriculum and grading unit tests.
-- [x] Initial invitation and session implementation with private D1 progress schema.
+- [x] Initial invitation and session implementation with private SQLite-backed Durable Object progress schema.
 - [x] Server-only answer keys; public lesson JSON strips answers and explanations.
 - [x] Responsive interface with lesson completion and feedback.
 - [x] Automated CI workflow and local testing scripts.
-- [ ] Cloudflare D1 database created and production binding configured.
+- [x] Durable Object SQLite lifecycle tests, invitation administration, authentication and saved progress.
+- [ ] SQLite-backed Durable Object configured and tested locally.
 - [ ] Cloudflare Worker deployed and real HTTPS URL verified.
 - [ ] End-to-end invitation redemption on deployed Worker tested.
 - [ ] Real-device checks on iOS and Android, including availability of Spanish voices.

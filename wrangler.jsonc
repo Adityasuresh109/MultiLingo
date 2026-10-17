@@ -3,17 +3,18 @@
   "name": "multilingo",
   "main": "src/worker.mjs",
   "compatibility_date": "2026-10-01",
+  "workers_dev": true,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "multilingo",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
-      "migrations_dir": "migrations"
-    }
+  "durable_objects": {
+    "bindings": [
+      { "name": "LEARNING_STORE", "class_name": "LearningStore" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["LearningStore"] }
   ]
 }
