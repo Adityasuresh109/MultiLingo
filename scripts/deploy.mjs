@@ -31,14 +31,32 @@ async function main() {
   if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID)
     throw new Error('Cloudflare API token and account ID are required. Set repository Actions secrets.');
   const name = 'multilingo';
-  let list = JSON.parse(run(['d1', 'list', '--json']));
-  let id = databaseIdFromList(list, name);
+  // Use the documented Cloudflare D1 REST API for discovery/provisioning.
+  // This also distinguishes Cloudflare permission errors from Wrangler CLI regressions.
+  async function d1Request(query, method = 'GET', body) {
+    const account = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/d1/database${query}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+        ...(body ? { 'content-type': 'application/json' } : {})
+      },
+      ...(body ? { body: JSON.stringify(body) } : {})
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.success !== true) {
+      const code = payload?.errors?.[0]?.code ?? 'unknown';
+      throw new Error(`D1 API access failed (HTTP ${response.status}, Cloudflare code ${code}). Verify that this GitHub Actions token has Account D1 Read and Write access for the exact CLOUDFLARE_ACCOUNT_ID. If the account and permissions are correct, investigate Cloudflare authentication error 10000.`);
+    }
+    return payload.result;
+  }
+  const found = await d1Request('?name=multilingo');
+  let id = databaseIdFromList(found, name);
   if (!id) {
     console.log('Creating the MultiLingo D1 database…');
-    run(['d1', 'create', name]);
-    list = JSON.parse(run(['d1', 'list', '--json']));
-    id = databaseIdFromList(list, name);
-    if (!id) throw new Error('D1 database was not present after create; deployment stopped.');
+    const created = await d1Request('', 'POST', { name });
+    id = databaseIdFromList([created], name);
+    if (!id) throw new Error('Cloudflare did not return a D1 UUID for the new database.');
   }
   const file = new URL('../wrangler.jsonc', import.meta.url);
   writeFileSync(file, configWithDatabase(readFileSync(file, 'utf8'), id));
