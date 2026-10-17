@@ -31,6 +31,22 @@ async function main() {
   if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID)
     throw new Error('Cloudflare API token and account ID are required. Set repository Actions secrets.');
   const name = 'multilingo';
+  // Check whether the token is active without exposing the token or its ID.
+  const authHeader = { authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` };
+  const verifyEndpoints = [
+    'https://api.cloudflare.com/client/v4/user/tokens/verify',
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)}/tokens/verify`
+  ];
+  let verified = false;
+  for (const endpoint of verifyEndpoints) {
+    const check = await fetch(endpoint, { headers: authHeader });
+    const result = await check.json().catch(() => null);
+    if (check.ok && result?.success === true && result?.result?.status === 'active') {
+      verified = true;
+      break;
+    }
+  }
+  console.log(verified ? 'Cloudflare token verification: active.' : 'Cloudflare token verification: could not verify active token (check secret value, expiry and account).');
   // Use the documented Cloudflare D1 REST API for discovery/provisioning.
   // This also distinguishes Cloudflare permission errors from Wrangler CLI regressions.
   async function d1Request(query, method = 'GET', body) {
