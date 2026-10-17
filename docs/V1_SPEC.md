@@ -14,7 +14,7 @@ Status: **approved requirements, staged implementation** (17 October 2026). Appl
 
 ## User experience
 
-1. Enter single-use invite token and preferred name/nickname.
+1. Enter personal learning code (initial invite) and preferred name/nickname. Returning learners use the same code to sign in without losing progress.
 2. See personal lesson path, per-lesson best score and locked/unlocked status.
 3. Select unlocked lesson; complete 5 short questions.
 4. After each response receive correct/incorrect explanation and an appropriate answer.
@@ -61,7 +61,7 @@ Status: **approved requirements, staged implementation** (17 October 2026). Appl
 - Cloudflare Worker in `src/worker.mjs` with static Worker Assets in the same origin.
 - Cloudflare D1 stores invite-token hashes, learner records, session-token hashes and progress.
 - `__Host-ml_session`: Secure, HttpOnly, SameSite=Strict cookie; 30-day expiry.
-- Crypto-random 256-bit invitation tokens, **one-time redemption** via transactional D1 batch; no plaintext invitation stored.
+- Crypto-random 256-bit private learning codes: first use claims the invitation and creates a learner; subsequent uses sign back into that exact learner. No plaintext codes stored.
 - REST endpoints: `GET /api/health`, `POST /api/auth/redeem`, `GET /api/me`, `POST /api/auth/logout`, `GET /api/lessons`, `GET /api/lessons/:id`, `POST /api/lessons/:id/check`, `POST /api/lessons/:id/complete`.
 - Browser public assets may be visible, but **every lesson and user-specific API endpoint requires a valid session**. This is invitation-based access control, not a claim that a public Worker URL is invisible.
 - No direct third-party analytics or learner-tracking SDK in the starter.

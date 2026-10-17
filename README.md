@@ -14,7 +14,7 @@
 
 - Responsive, original learning-path interface, two 5-question Spanish lessons, choice/typing/listening activities.
 - Immediate answer feedback, 80% unlock gate, best score, attempts and simple review reminders.
-- One-time 256-bit private invite redemption, 30-day secure cookie sessions, individual D1 progress.
+- 256-bit private invite/account codes (reusable by the same learner), 30-day secure cookie sessions, individual D1 progress.
 - No external AI API, no personal email collection, no ad or tracking SDK.
 - Node standard-library tests and GitHub Actions checks.
 
@@ -33,7 +33,7 @@ See [v1 spec](docs/V1_SPEC.md) and [setup and deployment](docs/SETUP.md). REA ob
 
 ## Security
 
-This repository may be public; **no learner profiles or raw invite/session tokens belong here**. The login shell is public, but all actual lesson and personal progress APIs require a valid session. Tokens are random and stored only as hashes in D1.
+This repository may be public; **no learner profiles or raw invite/session tokens belong here**. The login shell is public, but all actual lesson and personal progress APIs require a valid session. Private access codes are random and stored only as hashes in D1. Returning learners reuse their code to recover the same profile.
 
 ## Learning attribution
 

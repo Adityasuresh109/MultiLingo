@@ -54,6 +54,15 @@ async function route(request, env) {
     const inviteHash = await hash(invite);
     const sessionHash = await hash(session);
     const now = Math.floor(Date.now() / 1000);
+    // An invite becomes the learner's private sign-in key once claimed.
+    // This allows a returning learner to recover the same account on another device.
+    const returning = await env.DB.prepare(`SELECT u.id, u.display_name FROM invites i
+      JOIN users u ON u.id = i.claimed_by WHERE i.token_hash = ?`).bind(inviteHash).first();
+    if (returning) {
+      await env.DB.prepare('INSERT INTO sessions(token_hash, user_id, expires_at) VALUES (?, ?, ?)')
+        .bind(sessionHash, returning.id, now + SESSION_SECONDS).run();
+      return json({ ok: true, name: returning.display_name }, 200, { 'set-cookie': sessionCookie(session) });
+    }
     const results = await env.DB.batch([
       env.DB.prepare('UPDATE invites SET claimed_by = ?, claimed_at = datetime(\'now\') WHERE token_hash = ? AND claimed_by IS NULL RETURNING token_hash').bind(userId, inviteHash),
       env.DB.prepare('INSERT INTO users(id, display_name) SELECT ?, ? WHERE EXISTS(SELECT 1 FROM invites WHERE token_hash = ? AND claimed_by = ?)').bind(userId, name, inviteHash, userId),

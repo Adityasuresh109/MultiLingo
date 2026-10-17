@@ -26,13 +26,13 @@ function showLogin() {
   logoutButton.hidden = true; clear();
   const container = $('section', 'panel login-panel');
   add(container, $('div', 'login-symbol', '🌱'), $('div', 'eyebrow', 'Welcome to MultiLingo'),
-    $('h1', 'title', 'Every word is a new beginning.'), $('p', 'subtle', 'Learn Spanish at your own pace. Enter your personal invitation to get started.'));
+    $('h1', 'title', 'Every word is a new beginning.'), $('p', 'subtle', 'Learn Spanish at your own pace. Enter your personal learning code to get started or sign back in.'));
   const form = $('form', 'form-stack');
   const nameLabel = $('label', 'field-label', 'Your first name or nickname');
   const name = $('input', 'input'); name.required = true; name.maxLength = 32; name.minLength = 2; name.autocomplete = 'nickname'; name.placeholder = 'e.g. Alex';
   nameLabel.append(name);
-  const codeLabel = $('label', 'field-label', 'Invitation code');
-  const code = $('input', 'input'); code.required = true; code.placeholder = 'Paste your private invite'; code.autocomplete = 'off'; code.spellcheck = false;
+  const codeLabel = $('label', 'field-label', 'Personal learning code');
+  const code = $('input', 'input'); code.required = true; code.placeholder = 'Paste your private learning code'; code.autocomplete = 'off'; code.spellcheck = false;
   codeLabel.append(code);
   const submit = $('button', 'primary', 'Start learning →'); submit.type = 'submit';
   add(form, nameLabel, codeLabel, submit);
@@ -42,7 +42,7 @@ function showLogin() {
     try { await post('/auth/redeem', { name: name.value, invite: code.value }); await showHome(); }
     catch (error) { alertError(container, error.message); submit.disabled = false; submit.textContent = 'Start learning →'; }
   });
-  add(container, form, $('p', 'muted center', 'An invitation can be used once. Your progress is saved privately.')); root.append(container);
+  add(container, form, $('p', 'muted center', 'Keep your private code safe. Reuse it to sign back in on any device. Your progress is saved privately.')); root.append(container);
 }
 async function showHome() {
   clear(); logoutButton.hidden = false;
