@@ -27,6 +27,7 @@ async function main() {
   console.log('Deploying MultiLingo Worker with SQLite-backed Durable Object…');
   const url = deploymentUrl(wrangler(['deploy']));
   if (!url) throw new Error('Wrangler deploy completed but did not report a workers.dev URL.');
+  console.log('Cloudflare reported Worker URL:', url);
 
   if (process.env.MULTILINGO_ADMIN_TOKEN) {
     if (process.env.MULTILINGO_ADMIN_TOKEN.length < 24)
@@ -35,13 +36,31 @@ async function main() {
     console.log('Private invitation-admin secret installed.');
   } else console.log('No invite-admin secret provided; deploy is usable only after configuring MULTILINGO_ADMIN_TOKEN.');
 
-  const health = await fetch(new URL('/api/health', url));
-  if (!health.ok || (await health.json()).storage !== 'durable-objects-sqlite')
-    throw new Error('Live health check failed');
-  const lessons = await fetch(new URL('/api/lessons', url));
-  if (lessons.status !== 401) throw new Error('Security check failed: private lessons are not gated');
-  const home = await fetch(url);
-  if (!home.ok) throw new Error('Homepage is unavailable');
+  // Newly provisioned workers.dev hostnames can take time to propagate.
+  // Log only a short sample of a public HTTP response for safe debugging.
+  async function getWithRetry(path, passes, label) {
+    let status = 'network error', sample = '';
+    for (let attempt = 0; attempt < 7; attempt++) {
+      try {
+        const response = await fetch(new URL(path, url), { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+        status = String(response.status);
+        const payload = await response.text();
+        sample = payload.slice(0, 160).replace(/\\s+/g, ' ');
+        if (passes(response, payload)) return;
+      } catch (error) {
+        status = error?.name || 'network error';
+        sample = '';
+      }
+      if (attempt < 6) await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    throw new Error(`${label} failed (HTTP/status ${status}; sample: ${sample}). URL: ${url}`);
+  }
+  await getWithRetry('/api/health', (response, body) => {
+    if (!response.ok) return false;
+    try { return JSON.parse(body).storage === 'durable-objects-sqlite'; } catch { return false; }
+  }, 'Live health check');
+  await getWithRetry('/api/lessons', response => response.status === 401, 'Private lesson gate');
+  await getWithRetry('/', response => response.ok, 'Homepage');
   console.log('Production smoke checks passed. URL:', url);
   if (process.env.GITHUB_STEP_SUMMARY) {
     const { appendFileSync } = await import('node:fs');
